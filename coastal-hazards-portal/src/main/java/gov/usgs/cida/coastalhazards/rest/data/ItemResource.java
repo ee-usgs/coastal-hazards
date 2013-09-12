@@ -6,6 +6,7 @@ import gov.usgs.cida.coastalhazards.model.Item;
 import gov.usgs.cida.coastalhazards.model.summary.Summary;
 import gov.usgs.cida.config.DynamicReadOnlyProperties;
 import gov.usgs.cida.utilities.properties.JNDISingleton;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +25,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.jxpath.JXPathContext;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -34,6 +38,9 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
 
 /**
  * Could also be called item or layer or some other way of describing a singular
@@ -141,8 +148,10 @@ public class ItemResource {
             // this is not actually summary json object, so we need to change that a bit
             Summary summary = gson.fromJson(jsonSummary, Summary.class);
             item.setSummary(summary);
-        } catch (IOException ex) {
-            response = Response.serverError().entity(ex).build();
+        } catch (Exception ex) {
+            Map<String,String> err = new HashMap<String, String>();
+            err.put("message", ex.getMessage());
+            response = Response.serverError().entity(new Gson().toJson(err, HashMap.class)).build();
         }
         if (item.getSummary() != null) {
             final String id = itemManager.savePreview(item);
@@ -163,7 +172,7 @@ public class ItemResource {
 		return response;
 	}
     
-    private String getSummaryFromWPS(String metadataId, String attr) throws IOException {
+    private String getSummaryFromWPS(String metadataId, String attr) throws IOException, ParserConfigurationException, SAXException {
         MetadataResource metadata = new MetadataResource();
         Response response = metadata.getFileById(metadataId);
         String xmlWithoutHeader = response.getEntity().toString().replaceAll("<\\?xml[^>]*>", "");
@@ -207,7 +216,21 @@ public class ItemResource {
             }
             String data = IOUtils.toString(resp.getEntity().getContent(), "UTF-8");
             if (data.contains("ExceptionReport")) {
-                throw new IOException("Error in response from wps");
+                String error = "Error in response from wps";
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                factory.setNamespaceAware(true);
+                Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(data.getBytes()));
+                JXPathContext ctx = JXPathContext.newContext(doc.getDocumentElement());
+                ctx.registerNamespace("ows", "http://www.opengis.net/ows/1.1");
+                List<Node> nodes = ctx.selectNodes("ows:Exception/ows:ExceptionText/text()");
+                if (nodes != null && !nodes.isEmpty()) {
+                    StringBuilder builder = new StringBuilder();
+                    for (Node node : nodes) {
+                        builder.append(node.getTextContent()).append(System.lineSeparator());
+                    }
+                    error = builder.toString();
+                }
+                throw new RuntimeException(error);
             }
             return data;
     }

@@ -307,10 +307,11 @@ public class Intersection {
 		
 		if (uncy == null) {
 			Object uncyObj = attGet.getValue(UNCY_ATTR, this.feature);
-			if (uncyObj instanceof Double) {
-				uncy = (Double) uncyObj;
+			if (uncyObj instanceof Number) {
+				Number uncyNum = (Number)uncyObj;
+				uncy = uncyNum.doubleValue();
 			} else {
-				throw new UnsupportedFeatureTypeException("Uncertainty should be a double");
+				throw new UnsupportedFeatureTypeException("Uncertainty should be a number");
 			}
 		}
 		
