@@ -2,7 +2,7 @@
 <WPSConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://n52.org/wps schema_v2.xsd" xmlns="http://n52.org/wps">
     <Datahandlers>
 		<ParserList>
-            <Parser name="FeatureCollectionRParser" className="gov.usgs.cida.coastalhazards.parser.FeatureCollectionRParser" active="true">
+            <Parser name="FeatureCollectionRParser" className="gov.usgs.cida.coastalhazards.parser.CoastalChangeHazardsParser" active="true">
 				<Format mimetype="text/xml" schema="http://schemas.opengis.net/gml/2.0.0/feature.xsd"/>
 				<Format mimetype="text/xml" schema="http://schemas.opengis.net/gml/2.1.1/feature.xsd"/>
 				<Format mimetype="text/xml" schema="http://schemas.opengis.net/gml/2.1.2/feature.xsd"/>

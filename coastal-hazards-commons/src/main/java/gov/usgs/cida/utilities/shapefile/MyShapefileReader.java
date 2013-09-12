@@ -1,4 +1,4 @@
-package gov.usgs.cida.coastalhazards.uncy;
+package gov.usgs.cida.utilities.shapefile;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,13 +33,49 @@ public class MyShapefileReader implements Iterable<ShapeAndAttributes>, Iterator
 	public boolean used = false;
 	private File file;
 	private ShpFiles shpFile;
+	
+	private final boolean useArcZforMeasure;
 
-	public MyShapefileReader(String fn) {
-		init(new File(fn + ".shp"));
+	/**
+	 * New instance
+	 * 
+	 * @param shapefileBaseName abs path and base name (w/o extension) of the files within a complete shapefile directory.
+	 */
+	public MyShapefileReader(String shapefileBaseName) {
+		useArcZforMeasure = false;
+		
+		//Add .shp extension if not present
+		if (! shapefileBaseName.toLowerCase().endsWith(".shp")) {
+			shapefileBaseName = shapefileBaseName + ".shp";
+		}
+		
+		init(new File(shapefileBaseName), useArcZforMeasure);
 	}
 	
-	public MyShapefileReader(File f) {
-		init(f);
+	/**
+	 * New instance
+	 * 
+	 * @param shapeFile A valid reference to a .shp file within a complete shapefile directory.
+	 */
+	public MyShapefileReader(File shapeFile) {
+		useArcZforMeasure = false;
+		
+		init(shapeFile, useArcZforMeasure);
+	}
+	
+	/**
+	 * If your measure values are encoded in the Z dimention, set useArcZ to true.
+	 * 
+	 * The typical M measure value tends to be dropped during processing, so
+	 * putting the measure value in Z may be safer.
+	 * 
+	 * @param shapeFile A valid reference to a .shp file within a complete shapefile directory.
+	 * @param useArcZ 
+	 */
+	public MyShapefileReader(File shapeFile, boolean useArcZ) {
+		useArcZforMeasure = useArcZ;
+		
+		init(shapeFile, useArcZforMeasure);
 	}
 	
 	public DbaseFileHeader getDbfHeader() {
@@ -50,8 +86,13 @@ public class MyShapefileReader implements Iterable<ShapeAndAttributes>, Iterator
 		return shpFile;
 	}
 	
-	private void init(File f) {
-		file = f;
+	/**
+	 * 
+	 * @param shapeFile A valid reference to a .shp file within a complete shapefile directory.
+	 * @param isArcZ 
+	 */
+	private void init(File shapeFile, boolean isArcZ) {
+		file = shapeFile;
 
 		used = false;
 		
@@ -61,7 +102,13 @@ public class MyShapefileReader implements Iterable<ShapeAndAttributes>, Iterator
 			GeometryFactory gf = new GeometryFactory(x);
 	
 			rdr = new ShapefileReader(shpFile,false, false, gf);
-			rdr.setHandler(new MultiLineZHandler(ShapeType.ARCM, gf));
+			
+			if (isArcZ) {
+				rdr.setHandler(new MultiLineZHandler(ShapeType.ARCZ, gf));
+			} else {
+				rdr.setHandler(new MultiLineZHandler(ShapeType.ARCM, gf));
+			}
+			
 	
 			Charset charset = Charset.defaultCharset();		
 			dbf = new DbaseFileReader(shpFile, false, charset);
@@ -73,7 +120,7 @@ public class MyShapefileReader implements Iterable<ShapeAndAttributes>, Iterator
 	@Override
 	public synchronized Iterator<ShapeAndAttributes> iterator() {
 		if (used) {
-			init(file);
+			init(file, useArcZforMeasure);
 		}
 		return this;
 	}
@@ -104,9 +151,14 @@ public class MyShapefileReader implements Iterable<ShapeAndAttributes>, Iterator
 		throw new UnsupportedOperationException("Nope, sorry"); 		
 	}
 
+	/**
+	 * 
+	 * @param args
+	 * @throws Exception 
+	 */
 	public static void main(String[] args) throws Exception {
 		for (String fn : args) {
-			MyShapefileReader ego = new MyShapefileReader(fn);
+			MyShapefileReader ego = new MyShapefileReader(new File(fn));
 			for (ShapeAndAttributes saa : ego) {
 				System.out.println(saa);
 				Geometry geometry = (Geometry) saa.record.shape();

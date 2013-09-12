@@ -95,6 +95,7 @@
 		<cida.maven.url>http://internal.cida.usgs.gov/maven</cida.maven.url>
 		<war.dir>src/main/webapp</war.dir>
 		<build.scm.version>${buildNumber}</build.scm.version>
+		<geotools.version>9.3</geotools.version>
 		<slf4j.version>1.7.5</slf4j.version>
 	</properties>
 	<scm>
@@ -153,6 +154,16 @@
 	
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>org.geotools</groupId>
+				<artifactId>gt-api</artifactId>
+				<version>${geotools.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.geotools</groupId>
+				<artifactId>gt-shapefile</artifactId>
+				<version>${geotools.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>

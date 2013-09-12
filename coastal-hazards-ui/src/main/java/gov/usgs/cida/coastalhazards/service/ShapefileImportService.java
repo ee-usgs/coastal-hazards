@@ -41,12 +41,14 @@ import org.xml.sax.InputSource;
 
 /**
  *
+ * TODO:  It does not look like this is used.
+ * 
  * @author isuftin
  * @author rhayes
  */
 public class ShapefileImportService extends HttpServlet {
 
-    private static final String PTS_SUFFIX = gov.usgs.cida.coastalhazards.uncy.Xploder.PTS_SUFFIX;
+    private static final String ENCODED_Z_SUFFIX = gov.usgs.cida.coastalhazards.uncy.UncyZEncoder.ENCODED_Z_SUFFIX;
     
 	private static final long serialVersionUID = 1L;
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(ShapefileImportService.class);
@@ -199,7 +201,7 @@ public class ShapefileImportService extends HttpServlet {
         File pts_File = null;
         shapeFile = null;
         for (File file : zipFiles) {
-        	if (file.getName().endsWith(PTS_SUFFIX + ".zip")) {
+        	if (file.getName().endsWith(ENCODED_Z_SUFFIX + ".zip")) {
         		pts_File = file;
         	} else {
         		shapeFile = file;
@@ -218,7 +220,7 @@ public class ShapefileImportService extends HttpServlet {
         name = StringUtils.isBlank(featureName) ? FilenameUtils.removeExtension(shapeFile.getName()) : featureName;
 
         if (pts_File != null) {
-        	String pts_name = name + PTS_SUFFIX;
+        	String pts_name = name + ENCODED_Z_SUFFIX;
             HttpResponse pts_importResponse = geoserverHandler.importFeaturesFromFile(pts_File, workspace, store, pts_name);
             String pts_responseText = IOUtils.toString(pts_importResponse.getEntity().getContent());
 

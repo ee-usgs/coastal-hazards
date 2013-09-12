@@ -1,4 +1,4 @@
-package gov.usgs.cida.coastalhazards.uncy;
+package gov.usgs.cida.utilities.shapefile;
 
 /*
  *    GeoTools - The Open Source Java GIS Toolkit

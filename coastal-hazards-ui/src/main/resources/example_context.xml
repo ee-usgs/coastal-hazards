@@ -31,6 +31,10 @@ Example: JAVA_OPTS="$JAVA_OPTS -DGEOSERVER_DATA_DIR=/path/to/your/data/dir"
 <Environment name="coastal-hazards.geoserver.username" type="java.lang.String" value="admin" />
 <Environment name="coastal-hazards.geoserver.password" type="java.lang.String" value="supply.your.own" />
 
-<!-- URL Forwarding Configuration -->
+<!-- URL Forwarding Configuration : Local -->
 <Environment name="coastal-hazards.geoserver.endpoint" type="java.lang.String" value="http://localhost:8081/coastal-hazards-geoserver" />
 <Environment name="coastal-hazards.n52.endpoint" type="java.lang.String" value="http://localhost:8080/coastal-hazards-n52" />
+
+<!-- URL Forwarding Configuration : Dev server (useful for UI-only testing) -->
+<!-- <Environment name="coastal-hazards.geoserver.endpoint" type="java.lang.String" value="http://cida-wiwsc-cchdev.er.usgs.gov:8081/geoserver" /> -->
+<!-- <Environment name="coastal-hazards.n52.endpoint" type="java.lang.String" value="http://cida-wiwsc-cchdev.er.usgs.gov:8080/coastal-hazards-n52" /> -->

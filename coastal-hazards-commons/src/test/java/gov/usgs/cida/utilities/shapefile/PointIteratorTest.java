@@ -1,4 +1,4 @@
-package gov.usgs.cida.coastalhazards.uncy;
+package gov.usgs.cida.utilities.shapefile;
 
 import static org.junit.Assert.*;
 import static org.hamcrest.core.IsCollectionContaining.*;

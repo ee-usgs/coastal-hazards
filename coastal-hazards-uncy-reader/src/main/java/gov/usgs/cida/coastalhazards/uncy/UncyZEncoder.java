@@ -1,5 +1,7 @@
 package gov.usgs.cida.coastalhazards.uncy;
 
+import com.vividsolutions.jts.geom.Coordinate;
+import gov.usgs.cida.utilities.shapefile.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -36,6 +38,7 @@ import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jtsexample.geom.ExtendedCoordinate;
+import java.util.ArrayList;
 
 
 /** Write a copy of the input shapefile, with lines exploded to their constituent points
@@ -44,15 +47,15 @@ import com.vividsolutions.jtsexample.geom.ExtendedCoordinate;
  * @author rhayes
  *
  */
-public class Xploder {
+public class UncyZEncoder {
 
-	public static final String PTS_SUFFIX = "_pts";
+	public static final String ENCODED_Z_SUFFIX = "_zencode";
 
-	private static Logger logger = LoggerFactory.getLogger(Xploder.class);
+	private static Logger logger = LoggerFactory.getLogger(UncyZEncoder.class);
 	
 	private int geomIdx = -1;
 	private FeatureWriter<SimpleFeatureType, SimpleFeature> featureWriter;
-	private Map<UncyKey,Double>  uncyMap;
+	private Map<UncyZEncoder.UncyKey,Double>  uncyMap;
 	private int dfltUncyIdx = -1;
 	private DbaseFileHeader dbfHdr;
 	private Transaction tx;
@@ -83,10 +86,27 @@ public class Xploder {
 	
 	/** Key to point-by-point uncertainty. Must be hashable and ordered (used as lookup key).
 	 * 
+	 * Uncertainty is joined to points using a two part composit key:
+	 * <ol>
+	 * <li><b>surveyID</b><br/>:
+	 * Named <i>surveyID</i> in both the <i>name<i>.shp and <i>name</i>_uncertainty.dbf files.<br/>
+	 * A unique survey identifier (unique w/in a shoreline set) to link all the
+	 * MultiLineStrings that make up a survey.  Since a survey may have been done
+	 * over multiple days, multiple dates and MultiLineStrings are likely involved.
+	 * </li>
+	 * <li><b>id<b><br/>:
+	 * Named <i>id</i> in the <i>name</i>_uncertainty.dbf and is encoded as the
+	 * measure of each coordinate in the MultiLineStrings in the <i>name<i>.shp file
+	 * (coord.getM())<br/>
+	 * No one on the project seems to know how this ID is generated, but it is
+	 * somewhat spatially related and does uniquely identify a point within a
+	 * survey.
+	 * </li>
+	 * 
 	 * @author rhayes
 	 *
 	 */
-	public static class UncyKey implements Comparable<UncyKey>{
+	public static class UncyKey implements Comparable<UncyZEncoder.UncyKey>{
 		private final int idx;
 		private final String surveyID;
 		
@@ -121,7 +141,7 @@ public class Xploder {
 				return false;
 			if (getClass() != obj.getClass())
 				return false;
-			UncyKey other = (UncyKey) obj;
+			UncyZEncoder.UncyKey other = (UncyZEncoder.UncyKey) obj;
 			if (idx != other.idx)
 				return false;
 			if (surveyID == null) {
@@ -133,7 +153,7 @@ public class Xploder {
 		}
 
 		@Override
-		public int compareTo(UncyKey o) {
+		public int compareTo(UncyZEncoder.UncyKey o) {
 			int v;
 			
 			v = Integer.compare(idx, o.idx);
@@ -151,7 +171,7 @@ public class Xploder {
 		
 	}
 	
-	private static Map<UncyKey,Double> readUncyFromDBF(String fn) throws Exception {
+	private static Map<UncyZEncoder.UncyKey,Double> readUncyFromDBF(String fn) throws Exception {
 		
 		ShpFiles shpFile = new ShpFiles(fn);
 		Charset charset = Charset.defaultCharset();
@@ -165,7 +185,7 @@ public class Xploder {
 		int idIdx = locateField(hdr, "id", Number.class);
 		int surveyIdx = locateField(hdr,  "surveyID", String.class);
 		
-		Map<UncyKey,Double> value = new HashMap<UncyKey,Double>();
+		Map<UncyZEncoder.UncyKey,Double> value = new HashMap<UncyZEncoder.UncyKey,Double>();
 		
 		while (rdr.hasNext()) {
 			Object[] ff = rdr.readEntry();
@@ -174,7 +194,7 @@ public class Xploder {
 			Double d = (Double)ff[uncyIdx];
 			String surveyID = (String)ff[surveyIdx];
 			
-			UncyKey key = new UncyKey(i, surveyID);
+			UncyZEncoder.UncyKey key = new UncyZEncoder.UncyKey(i, surveyID);
 			value.put(key, d);
 		}
 		
@@ -189,62 +209,68 @@ public class Xploder {
 
 		Double defaultUncertainty = (Double)sap.row.read(dfltUncyIdx);
 		String surveyID = (String)sap.row.read(surveyIDIdx);
+		MultiLineString sourceMultiLine = (MultiLineString) sap.record.shape();
 		
-		int ptCt = 0;
-		MultiLineString shape = (MultiLineString) sap.record.shape();
 		int recordNum = sap.record.number;
+		int numGeom = sourceMultiLine.getNumGeometries();
+		int ptCt = 0;
 		
-		int numGeom = shape.getNumGeometries();
+		LineString[] destLineStr = new LineString[numGeom];
 		
-		for (int gx = 0; gx < numGeom; gx++) {
-			Geometry geometry = shape.getGeometryN(gx);
+		for (int lineStringIdx = 0; lineStringIdx < numGeom; lineStringIdx++) {
+			Geometry sourceGeometry = sourceMultiLine.getGeometryN(lineStringIdx);
 			
-			PointIterator pIterator = new PointIterator(geometry);
+			ArrayList<Coordinate> destCoord = new ArrayList();
+			
+			PointIterator pIterator = new PointIterator(sourceGeometry);
 			while (pIterator.hasNext()) {
 				Point p = pIterator.next();
 				
-				ExtendedCoordinate ec = (ExtendedCoordinate)p.getCoordinate();
+				ExtendedCoordinate sourceCoord = (ExtendedCoordinate)p.getCoordinate();
 				
 				double uncy = defaultUncertainty;
 				
-				double md = ec.getM();
+				double md = sourceCoord.getM();
 				if ( ! Double.isNaN(md)) {
 					int mi = (int)md;
 					
-					UncyKey key = new UncyKey(mi, surveyID);
+					UncyZEncoder.UncyKey key = new UncyZEncoder.UncyKey(mi, surveyID);
 					Double uv = uncyMap.get(key);
 					if (uv != null) {
 						uncy = uv;
 					}
 				}
 				
-				// write new point-thing-with-uncertainty
-				String segmentID = recordNum + ":" + (gx+1);
-				writePoint(p, sap.row, uncy, segmentID);
+				Coordinate destPoint = new Coordinate(sourceCoord.x, sourceCoord.y, uncy);
+				destCoord.add(destPoint);
 				
 				ptCt ++;
 				
 			}
+			
+			Coordinate[] destCoordArray = destCoord.toArray(new Coordinate[destCoord.size()]);
+			destLineStr[lineStringIdx] = geometryFactory.createLineString(destCoordArray);
 		}
 		
+		MultiLineString destMultiLine = geometryFactory.createMultiLineString(destLineStr);
+		writeMultiLine(destMultiLine, sap.row, recordNum);
 		return ptCt;
 		
 	}
-
-	public void writePoint(Point p, DbaseFileReader.Row row, double uncy, String recordNum) throws Exception {
+	
+	public void writeMultiLine(MultiLineString mls, DbaseFileReader.Row row, int recordNum) throws Exception {
 		
 		SimpleFeature writeFeature = featureWriter.next();
 		
 		// geometry field is first, otherwise we lose.
-		Point np = geometryFactory.createPoint(p.getCoordinate());
-		writeFeature.setAttribute(0, np);
+		writeFeature.setAttribute(0, mls);
 
 		// copy them other attributes over, replacing uncy
 		int i;
 		for (i = 0; i < dbfHdr.getNumFields(); i++) {
 			Object value;
 			if (i == dfltUncyIdx) {
-				value = uncy;
+				value = -1;
 			} else {
 				value = row.read(i);
 			}
@@ -262,7 +288,7 @@ public class Xploder {
 		
 		// duplicate input schema, except replace geometry with Point
 		SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
-		typeBuilder.setName(sourceSchema.getName() + PTS_SUFFIX);
+		typeBuilder.setName(sourceSchema.getName() + ENCODED_Z_SUFFIX);
 		typeBuilder.setCRS(sourceSchema.getCoordinateReferenceSystem());
 		
 		geomIdx = -1;
@@ -271,7 +297,7 @@ public class Xploder {
 		for (AttributeDescriptor ad : sourceSchema.getAttributeDescriptors()) {
 			AttributeType at = ad.getType();
 			if (at instanceof GeometryType) {
-				typeBuilder.add(ad.getLocalName(), Point.class);
+				typeBuilder.add(ad.getLocalName(), MultiLineString.class);
 				geomIdx = idx;
 			} else {
 				typeBuilder.add(ad.getLocalName(), ad.getType().getBinding());				
@@ -283,7 +309,7 @@ public class Xploder {
 
 		logger.debug("Output feature type is {}", outputFeatureType);
 		
-		File fout = new File(fn + PTS_SUFFIX + ".shp");
+		File fout = new File(fn + ENCODED_Z_SUFFIX + ".shp");
 		
 		Map<String, Serializable> connect = new HashMap<String, Serializable> ();
 		connect.put("url", fout.toURI().toURL());
@@ -326,13 +352,19 @@ public class Xploder {
 		return sourceSchema;
 	}
 	
-	public File explode(String fn) throws Exception {
-		MyShapefileReader rdr = initReader(fn);
+	/**
+	 * 
+	 * @param shapefile File base name (w/o extension) of the files within a complete shapefile directory.
+	 * @return
+	 * @throws Exception 
+	 */
+	public File explode(String shapefileBaseName) throws Exception {
+		MyShapefileReader rdr = initReader(shapefileBaseName);
 		
-		logger.debug("Input files from {}\n{}", fn, shapefileNames(rdr.getShpFiles()));
+		logger.debug("Input files from {}\n{}", shapefileBaseName, shapefileNames(rdr.getShpFiles()));
 		
 		tx = new DefaultTransaction("create");
-		File ptFile = initWriter(fn);
+		File zEncodedFile = initWriter(shapefileBaseName);
 		
 		// Too bad that the reader classes don't expose the ShpFiles.
 		
@@ -354,7 +386,7 @@ public class Xploder {
 		
 		logger.info("Wrote {} points in {} shapes", ptTotal, shpCt);
 		
-		return ptFile;
+		return zEncodedFile;
 	}
 
 	private static String shapefileNames(ShpFiles shp) {
@@ -368,20 +400,27 @@ public class Xploder {
 		return sb.toString();
 	}
 	
-	private MyShapefileReader initReader(String fn) throws Exception {
-		MyShapefileReader rdr = new MyShapefileReader(fn);
+	/**
+	 * 
+	 * @param shapefileBaseName Abs path and base name (w/o extension) of the files within a complete shapefile directory.
+	 * @return
+	 * @throws Exception 
+	 */
+	private MyShapefileReader initReader(String shapefileBaseName) throws Exception {
+		MyShapefileReader rdr = new MyShapefileReader(shapefileBaseName);
 		
 		dbfHdr = rdr.getDbfHeader();
 		dfltUncyIdx = locateField(dbfHdr, "uncy", Double.class);
 		surveyIDIdx = locateField(dbfHdr, "surveyID", String.class);
 
-		uncyMap = readUncyFromDBF(fn + "_uncertainty.dbf");
+		uncyMap = readUncyFromDBF(shapefileBaseName + "_uncertainty.dbf");
 		return rdr;
 	}
+	
 
 	public static void main(String[] args) throws Exception {
 		for (String fn : args) {
-			Xploder ego = new Xploder();
+			UncyZEncoder ego = new UncyZEncoder();
 
 			ego.explode(fn);
 			

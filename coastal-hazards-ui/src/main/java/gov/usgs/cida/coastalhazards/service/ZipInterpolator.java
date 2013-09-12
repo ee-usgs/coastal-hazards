@@ -1,6 +1,6 @@
 package gov.usgs.cida.coastalhazards.service;
 
-import gov.usgs.cida.coastalhazards.uncy.Xploder;
+import gov.usgs.cida.coastalhazards.uncy.UncyZEncoder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,8 +23,8 @@ import org.geotools.data.shapefile.ShpFiles;
 public class ZipInterpolator {
 
 	
-	/** Unpack a shapefile zip file, expand the shp from MultilineM to Point while substituting point-by-point 
-	 * uncertainty values, and return a new zipfile with that content.
+	/** Unpack a shapefile zip file and encode uncertainty values as Z values in
+	 * the coordinates of the Multilines.  Return a new zipfile.
 	 * @param uploadDestinationFile
 	 * @return new zipfile.
 	 */
@@ -33,8 +33,10 @@ public class ZipInterpolator {
 		File tmpDir = Files.createTempDirectory("xplode").toFile();
 		File shpFile = unpack(tmpDir,uploadDestinationFile);
 		
-		Xploder x = new Xploder();
-		File ptFile = x.explode(shpFile.getAbsolutePath());
+		String baseFilePath = getBaseFilePath(shpFile);
+		
+		UncyZEncoder zEncoder = new UncyZEncoder();
+		File ptFile = zEncoder.explode(baseFilePath);
 		
 		File newZip = repack(tmpDir,ptFile);
 		return newZip;
@@ -62,7 +64,7 @@ public class ZipInterpolator {
 			}
 		}
 		
-		File newZip = File.createTempFile("points", "zip", tmpDir);
+		File newZip = File.createTempFile("encoded", "zip", tmpDir);
 		FileOutputStream fos = new FileOutputStream(newZip);
 		ZipOutputStream zos = new ZipOutputStream(fos);
 		for (File f : toPack) {
@@ -130,6 +132,22 @@ public class ZipInterpolator {
 		zis.close();
 		fin.close();
 		return f;
+	}
+	
+	/**
+	 * Returns the complete absolute file path without the extension.
+	 * 
+	 * @param file
+	 * @return 
+	 */
+	private String getBaseFilePath(File file) {
+		String path = file.getAbsolutePath();
+		int idx = path.indexOf(".");
+		if (idx > 0) {
+			return path.substring(0, idx);
+		} else {
+			return path;
+		}
 	}
 
 }

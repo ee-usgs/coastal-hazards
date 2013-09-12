@@ -11,6 +11,10 @@
 	<name>Coastal Hazards Commons</name>
 	<dependencies>
 		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-shapefile</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
 		</dependency>

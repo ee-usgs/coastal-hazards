@@ -39,7 +39,7 @@
 	</servlet>
 	<servlet>
 		<servlet-name>shapefile-upload-servlet</servlet-name>
-		<servlet-class>gov.usgs.cida.geoutils.geoserver.servlet.ShapefileUploadServlet</servlet-class>
+		<servlet-class>gov.usgs.cida.coastalhazards.service.UploadService</servlet-class>
 		<!-- 
 		Used for reading JNDI variables. All JNDI variables used for this application 
 		will be prefixed with this parameter. Example: 
@@ -144,10 +144,6 @@
 		<servlet-class>gov.usgs.cida.coastalhazards.service.SessionService</servlet-class>
 	</servlet>
 	<servlet>
-		<servlet-name>UploadService</servlet-name>
-		<servlet-class>gov.usgs.cida.coastalhazards.service.UploadService</servlet-class>
-	</servlet>
-	<servlet>
 		<servlet-name>ExportService</servlet-name>
 		<servlet-class>gov.usgs.cida.coastalhazards.service.ExportService</servlet-class>
 	</servlet>
@@ -177,6 +173,7 @@
 		<url-pattern>/service/upload</url-pattern>
 	</servlet-mapping>
 	<servlet-mapping>
+		<!-- What is this servlet for?? -->
 		<servlet-name>ShapefileImportService</servlet-name>
 		<url-pattern>/service/import/shapefile</url-pattern>
 	</servlet-mapping>

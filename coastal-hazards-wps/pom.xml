@@ -14,7 +14,6 @@
 
 	<properties>
 		<gs.version>2.3.2</gs.version>
-		<gt.version>9.2</gt.version>
 	</properties>
 
 	<repositories>
@@ -41,7 +40,7 @@
 			<dependency>
 				<groupId>org.geotools</groupId>
 				<artifactId>geotools</artifactId>
-				<version>${gt.version}</version>
+				<version>${geotools.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -49,6 +48,11 @@
 	</dependencyManagement>
 
 	<dependencies>
+		<dependency>
+			<groupId>gov.usgs.cida.coastalhazards</groupId>
+			<artifactId>coastal-hazards-commons</artifactId>
+			<version>${parent.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-api</artifactId>

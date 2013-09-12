@@ -9,3 +9,9 @@ nb-configuration.xml
 .settings
 .classpath
 .Rproj.user
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.fix
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.qix
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.shp
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.prj
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.shx
+/coastal-hazards-uncy-reader/src/test/resources/test_data_zencode.dbf

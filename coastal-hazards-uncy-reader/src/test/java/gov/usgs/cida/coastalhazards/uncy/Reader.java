@@ -33,6 +33,7 @@ import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jtsexample.geom.ExtendedCoordinate;
+import gov.usgs.cida.utilities.shapefile.MultiLineZHandler;
 
 /** Read a shoreline shapefile and the associated uncertainty map.
  * 
